@@ -4,10 +4,17 @@ $LOAD_PATH << File.join(File.dirname(__FILE__), '../../..', 'plugins/youtube')
 require 'minitest/autorun'
 require 'decipherer.rb'
 require 'cipher_loader.rb'
+require 'yaml'
 
 class DeciphererTest < Minitest::Test
 
+  #STUB_CIPHER_LOADER = Object.new
+  #def STUB_CIPHER_LOADER.load_ciphers
+  #  YAML.load_file("ciphers.yml")
+  #end
+
   def setup
+    #@dc = Decipherer.new(STUB_CIPHER_LOADER)
     @dc = Decipherer.new(CipherLoader.new)
   end
 

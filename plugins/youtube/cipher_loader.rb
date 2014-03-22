@@ -15,7 +15,7 @@ class CipherLoader
 
   def load_ciphers
     begin
-      update_ciphers
+      #update_ciphers
     rescue => e
       Youtube.notify "Error updating ciphers: #{e.message}. Continuing..."
     end

@@ -12,7 +12,11 @@ class VideoResolver
 
   def get_video(url)
     @json = load_json(url)
-    Video.new(get_title, parse_stream_map(get_stream_map))
+
+    video_data = parse_stream_map(get_stream_map)
+    apply_signatures!(video_data)
+
+    Video.new(get_title, video_data)
   end
 
   private
@@ -49,7 +53,7 @@ class VideoResolver
     entries = stream_map.split(",")
 
     parsed = entries.map { |entry| parse_stream_map_entry(entry) }
-    parsed.each { |entry| apply_signature!(entry) if entry[:sig] }
+    #parsed.each { |entry| apply_signature!(entry) if entry[:sig] }
     parsed
   end
 
@@ -79,32 +83,38 @@ class VideoResolver
     text
   end
 
-  def apply_signature!(entry)
-    sig = get_deciphered_sig(entry[:sig])
-    entry[:url] << "&#{SIGNATURE_URL_PARAMETER}=#{sig}"
-    entry.delete(:sig)
+  def apply_signatures!(video_data)
+
+    video_data.each do |entry|
+      next unless entry[:sig]
+
+      sig, is_guess  = @decipherer.decipher(entry[:sig], get_html5player_version)
+      entry[:url]    << "&#{SIGNATURE_URL_PARAMETER}=#{sig}"
+      entry[:guess?] = is_guess
+      entry.delete(:sig)
+    end
   end
 
-  def get_deciphered_sig(sig)
-    return sig if sig.length == CORRECT_SIGNATURE_LENGTH
-    @decipherer.decipher_with_version(sig, get_html5player_version)
-  end
 
   class Video
     attr_reader :title
 
-    def initialize(title, itags_urls)
+    def initialize(title, video_data)
       @title = title
-      @itags_urls = itags_urls
+      @video_data = video_data
     end
 
     def available_itags
-      @itags_urls.map { |iu| iu[:itag] }
+      @video_data.map { |entry| entry[:itag] }
     end
 
     def get_download_url(itag)
-      itag_url = @itags_urls.find { |iu| iu[:itag] == itag }
-      itag_url[:url] if itag_url
+      entry = @video_data.find { |entry| entry[:itag] == itag }
+      entry[:url] if entry
+    end
+
+    def signature_guess?
+      @video_data.first[:guess?]
     end
   end
 end

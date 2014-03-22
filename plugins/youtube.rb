@@ -6,12 +6,12 @@ class Youtube < PluginBase
   end
 
   def self.get_urls_and_filenames(url, options = {})
-
+    coordinator     = DecipherCoordinator.new(Decipherer.new(CipherLoader.new), CipherGuesser.new)
+    @video_resolver = VideoResolver.new(coordinator)
     @url_resolver   = UrlResolver.new
-    @video_resolver = VideoResolver.new(Decipherer.new(CipherLoader.new))
     @format_picker  = FormatPicker.new(options)
 
-    urls = @url_resolver.get_all_urls(url, options[:filter])
+    urls   = @url_resolver.get_all_urls(url, options[:filter])
     videos = get_videos(urls)
 
     return_value = videos.map do |video|
@@ -36,10 +36,14 @@ class Youtube < PluginBase
         @video_resolver.get_video(url)
       rescue VideoResolver::VideoRemovedError
         notify "The video #{url} has been removed."
+        nil
       rescue => e
         notify "Error getting the video: #{e.message}"
+        nil
       end
     end
+
+    puts "guess: #{videos.first.signature_guess?}"
 
     videos.reject(&:nil?)
   end
