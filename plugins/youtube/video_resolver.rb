@@ -11,12 +11,13 @@ class VideoResolver
   end
 
   def get_video(url)
-    @json = load_json(url)
+    @json         = load_json(url)
+    decipher_data = @decipherer.get_decipher_data(get_html5player_version)
+    url_data      = parse_stream_map(get_stream_map)
 
-    video_data = parse_stream_map(get_stream_map)
-    apply_signatures!(video_data)
+    decipher_signatures!(url_data, decipher_data)
 
-    Video.new(get_title, video_data)
+    Video.new(get_title, url_data, decipher_data)
   end
 
   private
@@ -51,10 +52,7 @@ class VideoResolver
   #
   def parse_stream_map(stream_map)
     entries = stream_map.split(",")
-
-    parsed = entries.map { |entry| parse_stream_map_entry(entry) }
-    #parsed.each { |entry| apply_signature!(entry) if entry[:sig] }
-    parsed
+    entries.map { |entry| parse_stream_map_entry(entry) }
   end
 
   def parse_stream_map_entry(entry)
@@ -69,7 +67,7 @@ class VideoResolver
   end
 
   # The signature key can be either "sig" or "s".
-  # Very rarely there is no "s" or "sig" paramater. In this case the signature is already
+  # Very rarely there is no "s" or "sig" parameter. In this case the signature is already
   # applied and the the video can be downloaded directly.
   def fetch_signature(params)
     sig = params.fetch("sig", nil) || params.fetch("s", nil)
@@ -83,14 +81,12 @@ class VideoResolver
     text
   end
 
-  def apply_signatures!(video_data)
-
-    video_data.each do |entry|
+  def decipher_signatures!(url_data, decipher_data)
+    url_data.each do |entry|
       next unless entry[:sig]
 
-      sig, is_guess  = @decipherer.decipher(entry[:sig], get_html5player_version)
-      entry[:url]    << "&#{SIGNATURE_URL_PARAMETER}=#{sig}"
-      entry[:guess?] = is_guess
+      sig = @decipherer.decipher_with_operations(entry[:sig], decipher_data[:operations])
+      entry[:url] << "&#{SIGNATURE_URL_PARAMETER}=#{sig}"
       entry.delete(:sig)
     end
   end
@@ -99,22 +95,36 @@ class VideoResolver
   class Video
     attr_reader :title
 
-    def initialize(title, video_data)
+    def initialize(title, url_data, decipher_data)
       @title = title
-      @video_data = video_data
+      @url_data = url_data
+      @decipher_data = decipher_data
     end
 
     def available_itags
-      @video_data.map { |entry| entry[:itag] }
+      @url_data.map { |entry| entry[:itag] }
     end
 
     def get_download_url(itag)
-      entry = @video_data.find { |entry| entry[:itag] == itag }
+      entry = @url_data.find { |entry| entry[:itag] == itag }
       entry[:url] if entry
     end
 
     def signature_guess?
-      @video_data.first[:guess?]
+      @decipher_data[:guess?]
+    end
+
+    def cipher_operations
+      @decipher_data[:operations]
+    end
+
+    def cipher_version
+      @decipher_data[:version]
     end
   end
 end
+
+
+
+
+

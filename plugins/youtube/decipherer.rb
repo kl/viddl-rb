@@ -18,10 +18,14 @@ class Decipherer
   end
 
   def decipher_with_version(cipher, cipher_version)
+    ops = get_operations(cipher_version)
+    decipher_with_operations(cipher, ops)
+  end
+
+  def get_operations(cipher_version)
     operations = @ciphers[cipher_version] 
     raise UnknownCipherVersionError.new(cipher_version) unless operations
-
-    decipher_with_operations(cipher, operations.split)
+    operations.split
   end
 
   def decipher_with_operations(cipher, operations)

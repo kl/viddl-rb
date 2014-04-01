@@ -10,9 +10,9 @@ class CipherGuesser
 
     js = download_player_javascript(cipher_version)
 
-    decipher_func_name    = js[decipher_function_name_pattern, 1]
+    decipher_func_name = js[decipher_function_name_pattern, 1]
     decipher_func_pattern = function_pattern(decipher_func_name)
-    body_match            = decipher_func_pattern.match(js)
+    body_match = decipher_func_pattern.match(js)
 
     raise(CipherGuessError, "Could not extract the decipher function") unless body_match
 
@@ -25,11 +25,11 @@ class CipherGuesser
     lines.delete_at(lines.size - 1)
 
     lines.map do |line|
-      if /\(\w+,(?<index>\d+)\)/      =~ line  # calling a two argument function (swap)
+      if /\(\w+,(?<index>\d+)\)/ =~ line # calling a two argument function (swap)
         "w#{index}"
-      elsif /slice\((?<index>\d+)\)/  =~ line  # calling slice
+      elsif /slice\((?<index>\d+)\)/ =~ line # calling slice
         "s#{index}"
-      elsif /reverse\(\)/             =~ line  # calling reverse
+      elsif /reverse\(\)/ =~ line # calling reverse
         "r"
       else
         raise "Cannot parse line: #{line}"
@@ -55,7 +55,7 @@ class CipherGuesser
   end
 
   def function_pattern(function_name)
-    # Match the function function_name (that has one argument)
+  # Match the function function_name (that has one argument)
     /
     #{function_name}
     \(
@@ -66,7 +66,7 @@ class CipherGuesser
   end
 
   def function_body_pattern
-    # Match nested braces
+  # Match nested braces
     /
     (?<brace>
     {
