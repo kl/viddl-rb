@@ -58,8 +58,12 @@ class ParameterParser
         options[:title_only] = true
       end
 
-      opts.on("-f", "--filter REGEX", Regexp, "Filters a video playlist according to the regex") do |regex|
-        options[:filter] = regex
+      opts.on("-f", "--filter REGEX", Regexp, "Filters a video playlist on video titles that match the regex") do |regex|
+        options[:filter] = {regex: regex, reject: false}
+      end
+
+      opts.on("-fr", "--filter-reject REGEX", Regexp, "Filters a video playlist on video titles that do not match the regex") do |regex|
+        options[:filter] = {regex: regex, reject: true}
       end
 
       opts.on("-s", "--save-dir DIRECTORY", "Specifies the directory where videos should be saved") do |dir|
@@ -81,16 +85,16 @@ class ParameterParser
       opts.on("-q", "--quality QUALITY",
               "Specifies the video format and resolution in the following way: width:height:res (e.g. 1280:720:mp4). " +
               "The width, height and resolution may be omitted with a *. For example, to match any quality with a " +
-              "width of 720 pixels in any format specify --quality *:720:*") do |quality|
+              "height of 720 pixels in any format specify --quality *:720:*") do |quality|
 
         tokens = quality.split(":")
         raise OptionParser::InvalidArgument.new("#{quality} is not a valid argument.") unless tokens.size == 3
         width, height, ext = tokens
         validate_quality_options!(width, height, ext, quality)
 
-        options[:quality] = {width: width == "*" ? nil : width.to_i,
+        options[:quality] = {width:  width  == "*" ? nil : width.to_i,
                              height: height == "*" ? nil : height.to_i,
-                             extension: ext == "*" ? nil : ext}
+                             ext:    ext    == "*" ? nil : ext}
       end
     end
 

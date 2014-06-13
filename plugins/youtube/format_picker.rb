@@ -46,12 +46,12 @@ class FormatPicker
 
   DEFAULT_FORMAT_ORDER = %w[38 37 22 46 45 44 43 18 35 34 6 5 36 17 13 82 83 84 85 100 101 102 120 133 134 135 136 137 139 140 141 160 171 172]
 
-  def initialize(options)
-    @options = options
+  def initialize(youtube)
+    @youtube = youtube
   end
 
-  def pick_format(video)
-    if quality = @options[:quality]
+  def pick_format(video, options)
+    if quality = options[:quality]
       get_quality_format(video, quality)
     else
       get_default_format_for_video(video)
@@ -92,7 +92,7 @@ class FormatPicker
   end
 
   def matches_extension?(format, quality)
-    return false if quality[:extension] && quality[:extension] != format.extension
+    return false if quality[:ext] && quality[:ext] != format.extension
     true
   end
 
@@ -105,7 +105,7 @@ class FormatPicker
   def select_format(video, formats)
     case formats.length
     when 0
-      Youtube.notify "Requested format not found. Downloading default format."
+      @youtube.notify "Requested format not found. Downloading default format."
       get_default_format_for_video(video)
     when 1
       formats.first

@@ -40,7 +40,7 @@ module ViddlRb
       trap("SIGINT") { puts "goodbye"; exit }
 
       default_opts = {:save_dir => ".",
-                      :amount_of_retries => 6,
+                      :retries => 5,
                       :tool => get_default_tool}
 
       if user_tool = user_opts[:tool]
@@ -54,7 +54,7 @@ module ViddlRb
       success = false
 
       #Some providers seem to flake out every now end then
-      options[:amount_of_retries].times do |i|
+      (options[:retries] + 1).times do |i|
         if options[:tool] == :"net-http"
           require_progressbar
           puts "Using net/http"
@@ -68,7 +68,7 @@ module ViddlRb
         if success
           break
         else
-          puts "Download seems to have failed (retrying, attempt #{i+1}/#{options[:amount_of_retries]})"
+          puts "Download seems to have failed (retrying, attempt #{i+1}/#{options[:retries]})"
           sleep 2
         end
       end

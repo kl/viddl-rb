@@ -3,6 +3,10 @@ class UrlResolver
   PLAYLIST_FEED = "http://gdata.youtube.com/feeds/api/playlists/%s?&max-results=50&v=2"
   USER_FEED     = "http://gdata.youtube.com/feeds/api/users/%s/uploads?&max-results=50&v=2"
 
+  def initialize(youtube)
+    @youtube = youtube
+  end
+
   def get_all_urls(url, filter = nil)
     @filter = filter
 
@@ -23,24 +27,24 @@ class UrlResolver
     #http://www.youtube.com/watch?v=Tk78sr5JMIU&videos=jKY836_WMhE
 
     playlist_ID = url[/(?:list=PL|p=|list=)(.+?)(?:&|\/|$)/, 1]
-    Youtube.notify "Playlist ID: #{playlist_ID}"
+    @youtube.notify "Playlist ID: #{playlist_ID}"
     feed_url = PLAYLIST_FEED % playlist_ID
     url_array = get_video_urls(feed_url)
-    Youtube.notify "#{url_array.size} links found!"
+    @youtube.notify "#{url_array.size} links found!"
     url_array
   end
 
   def parse_user(username)
-    Youtube.notify "User: #{username}"
+    @youtube.notify "User: #{username}"
     feed_url = USER_FEED % username
     url_array = get_video_urls(feed_url)
-    Youtube.notify "#{url_array.size} links found!"
+    @youtube.notify "#{url_array.size} links found!"
     url_array
   end
 
   #get all videos and return their urls in an array
   def get_video_urls(feed_url)
-    Youtube.notify "Retrieving videos..."
+    @youtube.notify "Retrieving videos..."
     urls_titles = {}
     result_feed = Nokogiri::XML(open(feed_url))
     urls_titles.merge!(grab_urls_and_titles(result_feed))
@@ -67,8 +71,10 @@ class UrlResolver
   #returns only the urls that match the --filter argument regex (if present)
   def filter_urls(url_hash)
     if @filter
-      Youtube.notify "Using filter: #{@filter}"
-      filtered = url_hash.select { |url, title| title =~ @filter }
+      filtered = @filter[:reject] ?
+        url_hash.reject { |url, title| title =~ @filter[:regex] } :
+        url_hash.select { |url, title| title =~ @filter[:regex] }
+
       filtered.keys
     else
       url_hash.keys

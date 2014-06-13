@@ -7,19 +7,20 @@ class Veoh < PluginBase
     url.include?("veoh.com")
   end
 
-  def self.get_urls_and_filenames(url, options = {})
+  def get_urls_and_filenames(url, options = {})
     veoh_id = url[/\/watch\/([\w\d]+)/, 1]
     info_url = "#{VEOH_API_BASE}findByPermalink?permalink=#{veoh_id}"
     info_doc = Nokogiri::XML(open(info_url))
 
     download_url = get_download_url(info_doc)
-    file_name = get_file_name(info_doc, download_url)
+    extension = download_url[/\/[\w\d]+(\.[\w\d]+)\?ct/, 1]
+    file_name = info_doc.xpath('//rsp/videoList/video').first.attributes['title'].content
 
-    [{:url => download_url, :name => file_name}]
+    [{url: download_url, :name => file_name, ext: extension}]
   end
   
   #returns the first valid download url string, in order of the prefered formats, that is found for the video
-  def self.get_download_url(info_doc)
+  def get_download_url(info_doc)
     PREFERRED_FORMATS.each do |format|
       a = get_attribute(format)
       download_attr = info_doc.xpath('//rsp/videoList/video').first.attributes[a]
@@ -27,14 +28,7 @@ class Veoh < PluginBase
     end
   end
   
-  #the file name string is a combination of the video name and the extension
-  def self.get_file_name(info_doc, download_url)
-    name = info_doc.xpath('//rsp/videoList/video').first.attributes['title'].content
-    extension = download_url[/\/[\w\d]+(\.[\w\d]+)\?ct/, 1]
-    PluginBase.make_filename_safe(name) + extension
-  end
-
-  def self.get_attribute(format)
+  def get_attribute(format)
     case format
     when :mp4
       "ipodUrl"

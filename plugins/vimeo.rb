@@ -5,7 +5,7 @@ class Vimeo < PluginBase
     url.include?("vimeo.com")
   end
   
-  def self.get_urls_and_filenames(url, options = {})
+  def get_urls_and_filenames(url, options = {})
     #the vimeo ID consists of 7 decimal numbers in the URL
     vimeo_id = url[/\d{7,8}/]
 
@@ -29,9 +29,9 @@ class Vimeo < PluginBase
 
     download_url = h264[quality]["url"]
     extension = download_url[/.+?(\.[\w\d]+?)\?/, 1]
-    file_name = PluginBase.make_filename_safe(parsed["video"]["title"]) + extension
+    file_name = parsed["video"]["title"]
 
-    [{:url => download_url, :name => file_name}]
+    [{:url => download_url, :name => file_name, ext: extension}]
   end
 end
 

@@ -6,13 +6,13 @@ module ViddlRb
   # This class contains utility methods that are used by both the bin utility and the library.
   class UtilityHelper
 
-    # Loads all plugins in the plugin directory.
+    # Loads all plugin classes in the plugin directory.
     # The plugin classes are dynamically added to the ViddlRb module.
     # A plugin can have helper classes. These classes must exist in a in directory under the
     # plugins directory that has the same name as the plugin filename wihouth the .rb extension.
     # All classes found in such a directory will dynamically added as inner classes of the
     # plugin class.
-    def self.load_plugins
+    def self.load_plugin_classes
       plugins_dir  = File.join(File.dirname(__FILE__), "../plugins")
       plugin_paths = Dir[File.join(plugins_dir, "*.rb")]
 
@@ -36,7 +36,13 @@ module ViddlRb
     end
 
     def self.jruby?
-      ENV["RUBY_VERSION"].downcase.include?("jruby")
+      RUBY_ENGINE.downcase.include?("jruby")
+    end
+
+    # Takes a string a returns a new string that is file name safe on Windows and Unix systems.
+    def self.make_filename_safe(string)
+      safe = windows? ? string.gsub(/[:*?"<>^|\/\\]/, "_") : string.gsub(/[\/\\0]/, "_")
+      safe.squeeze("_")
     end
 
     def self.make_shellsafe_path(path)
@@ -72,8 +78,7 @@ module ViddlRb
       end
     end
 
-    # recursively get the final location (after following all redirects)
-    # for an url.
+    # Recursively get the final location (after following all redirects) for a url.
     def self.get_final_location(url)
       Net::HTTP.get_response(URI.parse(url)) do |res|
         location = res["location"]

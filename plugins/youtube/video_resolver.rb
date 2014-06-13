@@ -93,7 +93,7 @@ class VideoResolver
 
 
   class Video
-    attr_reader :title
+    attr_reader :title, :url_data
 
     def initialize(title, url_data, decipher_data)
       @title = title

@@ -2,57 +2,75 @@ module ViddlRb
 
   class PluginBase
 
-    #this exception is raised by the plugins when it was not 
-    #possible to donwload the video for some reason.
+    # This exception is raised by the plugins when it was not 
+    # possible to download the video for some reason.
     class CouldNotDownloadVideoError < StandardError; end
 
-    #some static stuff
     class << self
-      attr_accessor :io
-      attr_reader   :registered_plugins
+
+      attr_reader :registered_plugins
+
+      # If you inherit from this class, the child gets added to the "registered plugins" array.
+      def inherited(child)
+        @registered_plugins ||= []
+        @registered_plugins << child
+      end
+
+      def get_plugin(url, io = $stdout)
+        plugin_class = registered_plugins.find { |pc| pc.matches_provider?(url) }
+        plugin_class ? new_plugin(plugin_class, io) : nil
+      end
+
+      def get_all_plugins(io = $stdout)
+        registered_plugins.map { |plugin_class| new_plugin(plugin_class, io) }
+      end
+
+      # Returns an instance of plugin_class with the given IO object.
+      # The IO object is assigned before the plugin's initialize method is executed.
+      def new_plugin(plugin_class, io)
+        plugin = plugin_class.allocate
+        plugin.io = io
+        plugin.send(:initialize)
+        plugin
+      end
     end
 
-    #all calls to #puts, #print and #p from any plugin instance will be redirected to this object 
-    @io = $stdout
-    @registered_plugins = []
+    attr_accessor :io
 
-    #if you inherit from this class, the child gets added to the "registered plugins" array
-    def self.inherited(child)
-      PluginBase.registered_plugins << child
+    # Delegates calls to matches_provider? that are made on a plugin instance to the
+    # class method matches_providers?. This is used by the library.
+    def matches_provider?(url)
+      self.class.matches_provider?(url)
     end
 
-    #takes a string a returns a new string that is file name safe on Windows and Unix systems.
-    def self.make_filename_safe(string)
-      safe = UtilityHelper.windows? ? string.gsub(/[:*?"<>^|\/\\]/, "_") : string.gsub(/[\/\\0]/, "_")
-      safe.squeeze("_")
-    end
+    # The following methods redirects the Kernel printing methods (except #p)
+    # to the @io object. This is because sometimes we want plugins write to
+    # something else than $stdout. These methods are delegated when they are called
+    # from plugin instance methods, not from plugin class methods.
 
-    #the following methods redirects the Kernel printing methods (except #p) to the
-    #PluginBase IO object. this is because sometimes we want plugins to
-    #write to something else than $stdout
-
-    def self.puts(*objects)
-      PluginBase.io.puts(*objects)
+    def puts(*objects)
+      @io.puts(*objects)
       nil
     end
 
-    def self.print(*objects)
-      PluginBase.io.print(*objects)
+    def print(*objects)
+      @io.print(*objects)
       nil
     end
 
-    def self.putc(int)
-      PluginBase.io.putc(int)
+    def putc(int)
+      @io.putc(int)
       nil
     end
 
-    def self.printf(string, *objects)
+    def printf(string, *objects)
       if string.is_a?(IO) || string.is_a?(StringIO)
         super(string, *objects)  # so we don't redirect the printf that prints to a separate IO object
       else
-        PluginBase.io.printf(string, *objects)
+        @io.printf(string, *objects)
       end
       nil
     end
+
   end
 end

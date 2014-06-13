@@ -9,7 +9,8 @@ class CipherIO
   CIPHER_YAML_URL = "https://raw.githubusercontent.com/rb2k/viddl-rb/master/plugins/youtube/ciphers.yml"
   CIPHER_YAML_PATH = File.join(ViddlRb::UtilityHelper.base_path, "plugins/youtube/ciphers.yml")
 
-  def initialize
+  def initialize(youtube)
+    @youtube = youtube
     @ciphers = YAML.load_file(CIPHER_YAML_PATH)
   end
 
@@ -17,7 +18,7 @@ class CipherIO
     begin
       update_ciphers
     rescue => e
-      Youtube.notify "Error updating ciphers: #{e.message}. Continuing..."
+      @youtube.notify "Error updating ciphers: #{e.message}. Continuing..."
     end
 
     @ciphers.dup

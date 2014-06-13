@@ -7,97 +7,136 @@ require "nokogiri"
 require "multi_json"
 require "cgi"
 require "open-uri"
+require "open3"
 require "stringio"
 require "download-helper.rb"
 require "plugin-helper.rb"
 require "utility-helper.rb"
+require "audio-helper.rb"
 
-#load all plugins
-ViddlRb::UtilityHelper.load_plugins
+ViddlRb::UtilityHelper.load_plugin_classes
 
 module ViddlRb
-  class PluginError < StandardError; end
+
   class DownloadError < StandardError; end
 
-  def self.io=(io_object)
-    PluginBase.io = io_object
-  end
+  module LibraryExceptionHelpers
 
-  #set the default PluginBase io object to a StringIO instance.
-  #this will suppress any standard output from the plugins.
-  self.io = StringIO.new
-  
-  #returns an array of hashes containing the download url(s) and filenames(s) 
-  #for the specified video url.
-  #if the url does not match any plugin, return nil and if a plugin
-  #throws an error, throw PluginError.
-  #the reason for returning an array is because some urls will give multiple
-  #download urls (for example a Youtube playlist url).
-  def self.get_urls_names(url)
-    plugin = PluginBase.registered_plugins.find { |p| p.matches_provider?(url) }
+    def download_error(error, additional_message = "")
 
-    if plugin 
-      begin
-        #we'll end up with an array of hashes with they keys :url and :name
-        urls_filenames = plugin.get_urls_and_filenames(url)
-      rescue PluginBase::CouldNotDownloadVideoError => e
-        raise_download_error(e)
-      rescue StandardError => e
-        raise_plugin_error(e, plugin)
+      if error.is_a?(Exception)
+        download_error = DownloadError.new(error.message + additional_message)
+        download_error.set_backtrace(error.backtrace)
+        raise download_error
+      else
+        raise DownloadError.new(error.to_s + additional_message)
       end
-      follow_all_redirects(urls_filenames)
-    else
-      nil
     end
   end
 
-  #returns an array of download urls for the given video url.
-  def self.get_urls(url)
-    urls_filenames = get_urls_names(url)
-    urls_filenames.nil? ? nil : urls_filenames.map { |uf| uf[:url] }
-  end
+  extend LibraryExceptionHelpers
 
-  #returns an array of filenames for the given video url.
-  def self.get_names(url)
-    urls_filenames = get_urls_names(url)
-    urls_filenames.nil? ? nil : urls_filenames.map { |uf| uf[:name] }
-  end
+  def self.download(url, filename, options = {})
+    opts = {
+      save_dir: ".",
+      retries: 0,
+      extract_audio: false
+      }.merge(options)
 
-  #same as get_urls_and_filenames but with the extensions only.
-  def self.get_urls_exts(url)
-    urls_filenames = get_urls_names(url)
-    urls_filenames.map do |uf|
-      ext = File.extname(uf[:name])
-      {:url => uf[:url], :ext => ext}
+    success = DownloadHelper.save_file(url, filename, opts)
+    download_error "Error downloading file: #{url}" unless success
+
+    begin
+      AudioHelper.extract(filename, opts[:save_dir]) if opts[:extract_audio]
+    rescue StandardError => e
+      download_error(e)
     end
   end
 
-  #<<< helper methods >>>
+  class Agent
 
-  #the default error message when a plugin fails in some unexpected way.
-  def self.raise_plugin_error(e, plugin)
-    error = PluginError.new(e.message + " [Plugin: #{plugin.name}]")
-    error.set_backtrace(e.backtrace)
-    raise error
-  end
-  private_class_method :raise_plugin_error
+    include LibraryExceptionHelpers
 
-  #the default error message when a plugin fails to download a video for a known reason.
-  def self.raise_download_error(e)
-    error = DownloadError.new(e.message)
-    error.set_backtrace(e.backtrace)
-    raise error
-  end
-  private_class_method :raise_download_error
+    attr_accessor :plugin_io
 
-  #takes a url-filenames array and returns a new array where the
-  #"location" header has been followed all the way to the end for all urls.
-  def self.follow_all_redirects(urls_filenames)
-    urls_filenames.map do |uf|
-      url = uf[:url]
-      final_location = UtilityHelper.get_final_location(url)
-      {:url => final_location, :name => uf[:name]}
+    def initialize(io = nil)
+      @io = io
     end
+      
+    def get(url, options = {})
+      get_playlist(url, options).first
+    end
+
+    def get_playlist(url, options = {})
+      plugin  = find_plugin(url)
+      options = format_options(options)
+
+      data   = run_plugin(plugin, url, options) 
+      output = read_plugin_output(plugin)
+
+      @io.write(output) if @io && !output.empty?
+
+      get_videos(data, output)
+    end
+
+    private
+
+    def find_plugin(url)
+      plugin = PluginBase.get_plugin(url) 
+      download_error "No plugin found for URL '#{url}'" unless plugin
+      plugin.io = StringIO.new
+      plugin
+    end
+
+    def format_options(opts)
+      # Put the video quality values inside a new hash called :quality
+      opts[:quality] = {width:  opts.delete(:width),
+                        heigth: opts.delete(:height),
+                        ext:    opts.delete(:format)}
+
+      # Put the filter regex in the internally used format
+      filter = opts[:filter]
+      opts[:filter] = {regex: filter, reject: false} if filter.is_a?(Regexp)
+
+      opts
+    end
+
+    def run_plugin(plugin, url, options)
+      plugin.get_urls_and_filenames(url, options)
+    rescue PluginBase::CouldNotDownloadVideoError => e
+      download_error(e)
+    rescue StandardError => e
+      download_error(e, " [Plugin: #{plugin.class}")
+    end
+
+    def read_plugin_output(plugin)
+      plugin.io.rewind
+      plugin.io.read
+    end
+
+    def get_videos(plugin_data, output)
+      plugin_data.map do |entry|
+        entry[:filesafe_name] = UtilityHelper.make_filename_safe(entry[:name] + entry[:ext])
+        entry[:output] = output
+        Video.new(entry)
+      end
+    end
+
   end
-  private_class_method :follow_all_redirects
+
+  class Video
+
+    attr_reader :url, :name, :filesafe_name, :ext, :output, :extra 
+
+    def initialize(args)
+      @url, @name, @filesafe_name, @ext, @output, @extra = 
+        args[:url], args[:name], args[:filesafe_name], args[:ext], args[:output], args[:extra]
+    end
+
+    def download(options = {})
+      filename = options.fetch(:filename, filesafe_name)
+      ViddlRb.download(url, filename, options)
+    end
+
+  end
 end

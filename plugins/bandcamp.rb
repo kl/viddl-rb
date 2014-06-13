@@ -10,7 +10,7 @@ class Bandcamp < PluginBase
 
 
   # return the url for original video file and title
-  def self.get_urls_and_filenames(url, options = {})
+  def get_urls_and_filenames(url, options = {})
     # locate the js object with all the tracks data
     url_and_files = []
     doc           = Nokogiri::HTML(open(get_http_url(url)))
@@ -23,17 +23,16 @@ class Bandcamp < PluginBase
       # hopefully the last is the best
       track_url = track_data["file"].values.last
       
-      # create a good mp3 name
-      track_name = self.make_filename_safe(track_data['title']) + '.mp3'
+      track_name = track_data['title']
       
       # add to the response
-      url_and_files << {url: track_url, name: track_name}
+      url_and_files << {url: track_url, name: track_name, ext: ".mp3"}
     end
 
     url_and_files
   end
   
-  def self.get_http_url(url)
+  def get_http_url(url)
     url.sub(/https?:\/\//, "http:\/\/")
   end
 end

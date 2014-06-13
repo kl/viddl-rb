@@ -7,7 +7,7 @@ class ArtePlusSeven < PluginBase
   end
 
   # return the url for original video file and title
-  def self.get_urls_and_filenames(url, options = {})   
+  def get_urls_and_filenames(url, options = {})   
     id           = self.to_id(url)
     country      = self.extract_country(url)
     json_url     = "http://arte.tv/papi/tvguide/videos/stream/player/#{country}/#{id}_PLUS7-#{country.upcase}/ALL/ALL.json"
@@ -17,15 +17,14 @@ class ArtePlusSeven < PluginBase
     first_http_key = doc['VSR'].keys.find{|k| k.start_with?('HTTP')}
     download_url = doc['VSR'][first_http_key]['url']
     title        = doc['VTI']
-    file_name    = PluginBase.make_filename_safe(title) + ".mp4"
-    [{:url => download_url, :name => file_name}]
+    [{url: download_url, name: title, ext: ".mp4"}]
   end
 
-  def self.to_id(url)
+  def to_id(url)
     url[/([\d-]+)/,1]
   end
   
-  def self.extract_country(url)
+  def extract_country(url)
     url_country = url[/\/guide\/(..)\//,1]
     mapping = {
       'de' => 'D',

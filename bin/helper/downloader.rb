@@ -3,13 +3,12 @@ class Downloader
   class DownloadFailedError < StandardError; end
 
   def download(download_queue, params)
-    download_queue.each do |url_name|
+    download_queue.each do |video_data|
       # Skip invalid invalid link
-      next unless url_name
+      next unless video_data
 
-      # Url
-      url = url_name[:url]
-      name = url_name[:name]
+      url = video_data[:url]
+      name = ViddlRb::UtilityHelper.make_filename_safe(video_data[:name]) + video_data[:ext]
 
       result = ViddlRb::DownloadHelper.save_file url,
                                                  name,
@@ -17,10 +16,10 @@ class Downloader
                                                  :tool => params[:tool] && params[:tool].to_sym
       if result
         puts "Download for #{name} successful."
-        url_name[:on_downloaded].call(true) if url_name[:on_downloaded]
+        video_data[:on_downloaded].call(true) if video_data[:on_downloaded]
         ViddlRb::AudioHelper.extract(name, params[:save_dir]) if params[:extract_audio]
       else
-        url_name[:on_downloaded].call(false) if url_name[:on_downloaded]
+        video_data[:on_downloaded].call(false) if video_data[:on_downloaded]
         if params[:abort_on_failure]
           raise DownloadFailedError, "Download for #{name} failed."
         else

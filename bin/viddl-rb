@@ -22,7 +22,7 @@ begin
   params = ParameterParser.parse_app_parameters(ARGV)
 
   puts "Loading Plugins"
-  ViddlRb::UtilityHelper.load_plugins
+  ViddlRb::UtilityHelper.load_plugin_classes
   puts "Plugins loaded: #{ViddlRb::PluginBase.registered_plugins.inspect}"
 
   puts "Will try to extract audio: #{params[:extract_audio] == true}."

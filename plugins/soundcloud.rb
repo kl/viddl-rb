@@ -10,7 +10,7 @@ class Soundcloud < PluginBase
 
 
   # return the url for original video file and title
-  def self.get_urls_and_filenames(url, options = {})
+  def get_urls_and_filenames(url, options = {})
     url_and_files = []
     doc           = Nokogiri::HTML(open(get_http_url(url)))
 
@@ -21,15 +21,15 @@ class Soundcloud < PluginBase
       track_data  = JSON.parse(match[1])
       
       file_url    = track_data['streamUrl']
-      file_name   = self.make_filename_safe(track_data['title'].to_s) + '.mp3'
+      file_name   = track_data['title'].to_s
 
-      url_and_files << {url: file_url, name: file_name}
+      url_and_files << {url: file_url, name: file_name, ext: ".mp3"}
     end
 
     url_and_files
   end
 
-  def self.get_http_url(url)
+  def get_http_url(url)
     url.sub(/https?:\/\//, "http:\/\/")
   end
 end

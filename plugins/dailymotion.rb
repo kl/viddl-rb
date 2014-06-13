@@ -10,7 +10,7 @@ class Dailymotion < PluginBase
   end
 
   # return the url for original video file and title
-  def self.get_urls_and_filenames(url, options = {})
+  def get_urls_and_filenames(url, options = {})
     doc = Nokogiri::HTML(open(url))
 
     #check to see that the video is hosted on dailymotion.com - if not raise exception
@@ -24,13 +24,13 @@ class Dailymotion < PluginBase
     quality   = QUALITY_PRIORITY.find { |q| urls[q] }   #quality is the first quality from the priority list that exists for the video
     down_url  = urls[quality]
     extension = down_url[/(\.[\w\d]+)\?/, 1]
-    file_name = PluginBase.make_filename_safe(title) + extension
+    file_name = make_filename_safe(title) + extension
 
     [{:url => unescape_url(down_url), :name => file_name}]
   end
 
   #returns a hash with the different video qualities mapped to their respective download urls
-  def self.get_download_urls(doc)
+  def get_download_urls(doc)
     flashvars = doc.xpath("//div[@class='dmco_html player_box']/script").text   #the flash player script
     decoded = CGI::unescape(flashvars)
     url_array = decoded.scan(/(ld|sd|hq|hd720|hd1080)URL":"(.+?)"/).flatten     #group 1 = the quality, group 2 = the url
@@ -38,7 +38,7 @@ class Dailymotion < PluginBase
   end
 
   #remove backslashes
-  def self.unescape_url(url)
+  def unescape_url(url)
     url.gsub("\\", "")
   end
 end
